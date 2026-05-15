@@ -8,6 +8,55 @@
   },
   "instructions": [
     {
+      "name": "bind_worker",
+      "discriminator": [
+        210,
+        246,
+        76,
+        225,
+        180,
+        185,
+        6,
+        65
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "escrow_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow_state.task_nonce",
+                "account": "EscrowState"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "worker",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "create_escrow",
       "discriminator": [
         253,
@@ -298,6 +347,26 @@
       "code": 6002,
       "name": "Unauthorized",
       "msg": "Caller is not the authority for this escrow."
+    },
+    {
+      "code": 6003,
+      "name": "WorkerAlreadyBound",
+      "msg": "Worker has already been bound to this escrow."
+    },
+    {
+      "code": 6004,
+      "name": "WorkerNotBound",
+      "msg": "No worker bound to this escrow yet."
+    },
+    {
+      "code": 6005,
+      "name": "WorkerMismatch",
+      "msg": "The recipient token account does not belong to the bound worker."
+    },
+    {
+      "code": 6006,
+      "name": "InvalidWorker",
+      "msg": "Invalid worker pubkey."
     }
   ],
   "types": [
@@ -330,6 +399,10 @@
                 32
               ]
             }
+          },
+          {
+            "name": "worker",
+            "type": "pubkey"
           },
           {
             "name": "status",

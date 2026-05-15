@@ -1,13 +1,16 @@
 // Minimal per-task USDC escrow for the agent-native freelancer marketplace.
 //
-// Three instructions:
-//   create_escrow    Funds a PDA-owned token account with the bounty.
-//   release_to_worker  PDA signs a transfer to the worker's USDC account.
-//   refund_to_agent    PDA signs a transfer back to the agent's USDC account.
+// Four instructions:
+//   create_escrow     Funds a PDA-owned token account with the bounty.
+//   bind_worker       Records which worker is allowed to receive the funds.
+//   release_to_worker PDA signs a transfer to the bound worker's USDC account.
+//   refund_to_agent   PDA signs a transfer back to the agent's USDC account.
 //
-// The authority that may release or refund is captured at create time. In v1
-// the backend's platform keypair is the authority for all escrows. This is a
-// documented limitation; v2 should make the agent the on-chain authority.
+// The authority that may bind, release, or refund is captured at create time.
+// In v1 the backend's platform keypair is the authority for all escrows.
+// The worker recipient is bound on-chain at claim time so the authority cannot
+// silently redirect funds to a different address at release time. This is a
+// documented v1 simplification; v2 will move authority off the platform key.
 
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
@@ -32,6 +35,7 @@ pub mod marketplace_escrow {
         escrow.mint = ctx.accounts.mint.key();
         escrow.bounty = bounty;
         escrow.task_nonce = task_nonce;
+        escrow.worker = Pubkey::default();
         escrow.status = EscrowStatus::Funded as u8;
         escrow.bump = ctx.bumps.escrow_state;
 
@@ -47,6 +51,20 @@ pub mod marketplace_escrow {
         Ok(())
     }
 
+    pub fn bind_worker(ctx: Context<BindWorker>, worker: Pubkey) -> Result<()> {
+        let escrow = &mut ctx.accounts.escrow_state;
+        require!(
+            escrow.status == EscrowStatus::Funded as u8,
+            EscrowError::WrongStatus
+        );
+        require_keys_eq!(escrow.authority, ctx.accounts.authority.key(), EscrowError::Unauthorized);
+        require!(escrow.worker == Pubkey::default(), EscrowError::WorkerAlreadyBound);
+        require!(worker != Pubkey::default(), EscrowError::InvalidWorker);
+
+        escrow.worker = worker;
+        Ok(())
+    }
+
     pub fn release_to_worker(ctx: Context<ReleaseToWorker>) -> Result<()> {
         let escrow = &mut ctx.accounts.escrow_state;
         require!(
@@ -54,6 +72,14 @@ pub mod marketplace_escrow {
             EscrowError::WrongStatus
         );
         require_keys_eq!(escrow.authority, ctx.accounts.authority.key(), EscrowError::Unauthorized);
+        require!(escrow.worker != Pubkey::default(), EscrowError::WorkerNotBound);
+        // The recipient token account must be owned by the worker that was
+        // bound at claim time. The authority cannot silently redirect funds.
+        require_keys_eq!(
+            ctx.accounts.worker_token_account.owner,
+            escrow.worker,
+            EscrowError::WorkerMismatch
+        );
 
         let task_nonce = escrow.task_nonce;
         let bump = escrow.bump;
@@ -147,6 +173,18 @@ pub struct CreateEscrow<'info> {
 }
 
 #[derive(Accounts)]
+pub struct BindWorker<'info> {
+    pub authority: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [b"escrow", escrow_state.task_nonce.as_ref()],
+        bump = escrow_state.bump,
+    )]
+    pub escrow_state: Account<'info, EscrowState>,
+}
+
+#[derive(Accounts)]
 pub struct ReleaseToWorker<'info> {
     pub authority: Signer<'info>,
 
@@ -201,12 +239,13 @@ pub struct EscrowState {
     pub mint: Pubkey,
     pub bounty: u64,
     pub task_nonce: [u8; 32],
+    pub worker: Pubkey,
     pub status: u8,
     pub bump: u8,
 }
 
 impl EscrowState {
-    pub const LEN: usize = 8 + 32 + 32 + 32 + 8 + 32 + 1 + 1;
+    pub const LEN: usize = 8 + 32 + 32 + 32 + 8 + 32 + 32 + 1 + 1;
 }
 
 #[repr(u8)]
@@ -224,4 +263,12 @@ pub enum EscrowError {
     WrongStatus,
     #[msg("Caller is not the authority for this escrow.")]
     Unauthorized,
+    #[msg("Worker has already been bound to this escrow.")]
+    WorkerAlreadyBound,
+    #[msg("No worker bound to this escrow yet.")]
+    WorkerNotBound,
+    #[msg("The recipient token account does not belong to the bound worker.")]
+    WorkerMismatch,
+    #[msg("Invalid worker pubkey.")]
+    InvalidWorker,
 }

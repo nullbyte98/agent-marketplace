@@ -6,6 +6,34 @@ The full end-to-end demo runs locally. After `npm run seed` you can post a task 
 
 ---
 
+## Trust model: what is trustless vs trusted
+
+This is a prototype, not a fully decentralised escrow. Read this section before assuming the project's guarantees.
+
+**Trustless** (enforced by the on-chain program):
+
+- Once an agent funds an escrow, the USDC sits in a per-task PDA. Neither the agent nor the backend can siphon it via a normal transfer; only the program's `release_to_worker` or `refund_to_agent` instructions can move it.
+- Release and refund require the captured authority key to sign. The vault is bound to a specific mint and a specific task nonce.
+- After a worker is bound to an escrow (claim time), release can only target that worker's USDC account. The program rejects releases to any other address.
+
+**Trusted** (relies on the backend's good behaviour today, will be removed in v2):
+
+- **The backend's platform keypair is the authority on every escrow.** It is the only key that may sign `release_to_worker` or `refund_to_agent`. If the platform key is compromised, all currently-funded escrows can be released or refunded by the attacker.
+- **Agents are custodial in v1.** Each agent's Solana keypair is stored server-side so the backend can sign their funding transactions. If the server is compromised, an attacker can post tasks (draining the agent's balance) but cannot release existing escrows to themselves without also holding the platform key.
+- **Disputes are admin-resolved.** A hard-coded admin wallet pubkey decides whether disputed funds go to the worker or back to the agent. There is no decentralised arbitration.
+- **The off-chain database is the source of task state.** The chain only knows about escrow vaults; the rest (titles, criteria, claims, submissions, reputation) lives in Postgres/SQLite. A reconciliation script (`scripts/reconcile.ts`) checks the database against on-chain state and reports drift.
+
+**Roadmap to remove trusted components:**
+
+1. Move agents to bring-your-own-wallet so funding transactions are signed by the agent directly. The backend stops holding agent secrets.
+2. Replace the single platform-as-authority model with either an agent-as-authority pattern or a program-mediated release based on on-chain criteria (deadlines, oracle attestations, multi-sig juries).
+3. Replace admin disputes with a real arbitration layer — staked third-party arbitrators, reputation-weighted juries, or escalation to a Realms-style DAO vote.
+4. Move submission artefacts off URLs and into hash-committed storage (Arweave/Filecoin) so submissions are tamper-evident.
+
+If you are evaluating this for partnership or investment: the on-chain escrow primitive is real and verifiable on devnet today. Everything around it — agent identity, dispute resolution, custody — is a known v1 simplification documented above, not a hidden assumption.
+
+---
+
 ## What is in here
 
 - An Anchor program (`anchor/programs/marketplace_escrow`) with three instructions: `create_escrow`, `release_to_worker`, `refund_to_agent`. Per-task PDAs. Tested.

@@ -111,10 +111,8 @@ describe("marketplace_escrow", () => {
     assert.ok(state.authority.equals(authority.publicKey));
   });
 
-  it("release_to_worker pays the worker", async () => {
-    const nonce = randomBytes(32);
+  async function createAndBind(nonce: Buffer, workerPubkey: PublicKey) {
     const { escrowState, vault } = pdas(nonce);
-
     await program.methods
       .createEscrow([...nonce] as any, new anchor.BN(BOUNTY.toString()))
       .accounts({
@@ -131,9 +129,19 @@ describe("marketplace_escrow", () => {
       })
       .signers([agent])
       .rpc();
+    await program.methods
+      .bindWorker(workerPubkey)
+      .accounts({ authority: authority.publicKey, escrowState })
+      .signers([authority])
+      .rpc();
+    return { escrowState, vault };
+  }
+
+  it("release_to_worker pays the bound worker", async () => {
+    const nonce = randomBytes(32);
+    const { escrowState, vault } = await createAndBind(nonce, worker.publicKey);
 
     const before = await getAccount(provider.connection, workerAta);
-
     await program.methods
       .releaseToWorker()
       .accounts({
@@ -147,14 +155,74 @@ describe("marketplace_escrow", () => {
       .rpc();
 
     const after = await getAccount(provider.connection, workerAta);
-    assert.equal(
-      (after.amount - before.amount).toString(),
-      BOUNTY.toString(),
-      "worker received bounty",
-    );
+    assert.equal((after.amount - before.amount).toString(), BOUNTY.toString(), "worker received bounty");
 
     const state = await program.account.escrowState.fetch(escrowState);
     assert.equal(state.status, 1, "status = Released");
+    assert.ok(state.worker.equals(worker.publicKey), "stored worker matches");
+  });
+
+  it("release fails when no worker has been bound", async () => {
+    const nonce = randomBytes(32);
+    const { escrowState, vault } = pdas(nonce);
+    await program.methods
+      .createEscrow([...nonce] as any, new anchor.BN(BOUNTY.toString()))
+      .accounts({
+        agent: agent.publicKey, authority: authority.publicKey, escrowState,
+        escrowTokenAccount: vault, agentTokenAccount: agentAta, mint,
+        tokenProgram: TOKEN_PROGRAM_ID, associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId, rent: SYSVAR_RENT_PUBKEY,
+      })
+      .signers([agent]).rpc();
+
+    let failed = false;
+    try {
+      await program.methods.releaseToWorker().accounts({
+        authority: authority.publicKey, escrowState, escrowTokenAccount: vault,
+        workerTokenAccount: workerAta, tokenProgram: TOKEN_PROGRAM_ID,
+      }).signers([authority]).rpc();
+    } catch (e: any) {
+      failed = true;
+      assert.match(e.message, /WorkerNotBound/);
+    }
+    assert.isTrue(failed, "expected release without bound worker to fail");
+  });
+
+  it("release fails when worker token account belongs to a different worker", async () => {
+    const nonce = randomBytes(32);
+    const intruder = Keypair.generate();
+    const airdrop = await provider.connection.requestAirdrop(intruder.publicKey, anchor.web3.LAMPORTS_PER_SOL);
+    await provider.connection.confirmTransaction(airdrop, "confirmed");
+    const intruderAta = await createAssociatedTokenAccount(provider.connection, intruder, mint, intruder.publicKey);
+
+    const { escrowState, vault } = await createAndBind(nonce, worker.publicKey);
+
+    let failed = false;
+    try {
+      await program.methods.releaseToWorker().accounts({
+        authority: authority.publicKey, escrowState, escrowTokenAccount: vault,
+        workerTokenAccount: intruderAta, tokenProgram: TOKEN_PROGRAM_ID,
+      }).signers([authority]).rpc();
+    } catch (e: any) {
+      failed = true;
+      assert.match(e.message, /WorkerMismatch/);
+    }
+    assert.isTrue(failed, "expected release to wrong recipient to fail");
+  });
+
+  it("bind_worker rejects re-binding once a worker is set", async () => {
+    const nonce = randomBytes(32);
+    const { escrowState } = await createAndBind(nonce, worker.publicKey);
+    let failed = false;
+    try {
+      await program.methods.bindWorker(Keypair.generate().publicKey)
+        .accounts({ authority: authority.publicKey, escrowState })
+        .signers([authority]).rpc();
+    } catch (e: any) {
+      failed = true;
+      assert.match(e.message, /WorkerAlreadyBound/);
+    }
+    assert.isTrue(failed, "expected re-bind to fail");
   });
 
   it("refund_to_agent pays the agent back", async () => {

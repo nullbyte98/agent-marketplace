@@ -103,6 +103,27 @@ export async function createEscrow(params: {
   return { signature, escrowPda: state, vault };
 }
 
+/**
+ * Bind the worker that is allowed to receive the bounty. Called at claim time.
+ * Platform signs. After this, release_to_worker can only transfer to a token
+ * account owned by `workerPubkey`.
+ */
+export async function bindWorker(params: {
+  taskNonce: Buffer;
+  workerPubkey: PublicKey;
+}): Promise<string> {
+  const { taskNonce, workerPubkey } = params;
+  const platform = getPlatformKeypair();
+  const program = getProgram(platform);
+  const { state } = deriveEscrowPda(taskNonce);
+
+  return program.methods
+    .bindWorker(workerPubkey)
+    .accounts({ authority: platform.publicKey, escrowState: state })
+    .signers([platform])
+    .rpc();
+}
+
 export async function releaseToWorker(params: {
   taskNonce: Buffer;
   workerPubkey: PublicKey;

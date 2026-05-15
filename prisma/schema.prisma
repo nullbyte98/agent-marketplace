@@ -39,6 +39,8 @@ model Task {
   id                    String   @id @default(cuid())
   agentId               String
   agent                 Agent    @relation(fields: [agentId], references: [id])
+  idempotencyKey        String?  // if set, (agentId, idempotencyKey) is unique
+  bindTxSig             String?
   title                 String
   description           String
   acceptanceCriteriaJson String  // JSON-encoded structured criteria
@@ -64,6 +66,7 @@ model Task {
 
   @@index([status])
   @@index([verificationMethod])
+  @@unique([agentId, idempotencyKey])
 }
 
 model Submission {

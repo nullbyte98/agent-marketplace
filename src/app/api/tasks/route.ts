@@ -28,6 +28,19 @@ export async function POST(req: Request) {
   if (!parse.success) return error("Invalid body: " + parse.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join("; "));
   const b = parse.data;
 
+  // Idempotency: if the same agent retries with the same key (network glitch,
+  // client retry), return the original task instead of funding a second escrow.
+  const idempotencyKey = req.headers.get("idempotency-key");
+  if (idempotencyKey) {
+    const existing = await db.task.findUnique({
+      where: { agentId_idempotencyKey: { agentId: agent.id, idempotencyKey } },
+      include: { agent: true },
+    });
+    if (existing) {
+      return json({ task: serializeTask(existing), escrow_tx: existing.escrowFundedTxSig, idempotent: true });
+    }
+  }
+
   const deadlineAt = new Date(Date.now() + b.deadline_hours * 3600 * 1000);
   const nonce = newTaskNonce();
   const nonceHex = taskNonceToHex(nonce);
@@ -62,6 +75,7 @@ export async function POST(req: Request) {
       escrowPda,
       escrowFundedTxSig: signature,
       taskNonce: nonceHex,
+      idempotencyKey: idempotencyKey ?? null,
     },
     include: { agent: true },
   });

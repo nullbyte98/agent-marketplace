@@ -34,12 +34,16 @@ export default function TaskDetailPage() {
   useEffect(() => { load(); }, [load]);
 
   async function claim() {
-    if (!publicKey) return;
+    if (!publicKey || !signMessage) return;
     setBusy(true); setFeedback(null);
+    // Prove ownership of the claiming wallet before the backend will accept it.
+    const message = `agent-marketplace.claim\ntask:${task.id}\nwallet:${publicKey.toBase58()}`;
+    const sigBytes = await signMessage(new TextEncoder().encode(message));
+    const signature = bs58.encode(sigBytes);
     const r = await fetch(`/api/tasks/${params.id}/claim`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ wallet_address: publicKey.toBase58() }),
+      body: JSON.stringify({ wallet_address: publicKey.toBase58(), signature }),
     });
     const d = await r.json();
     setBusy(false);
@@ -119,7 +123,10 @@ export default function TaskDetailPage() {
             <CardHeader><CardTitle>Claim this task</CardTitle></CardHeader>
             <CardContent>
               {!connected ? <p className="text-sm text-muted-foreground">Connect your Phantom wallet to claim.</p>
-                : <Button onClick={claim} disabled={busy}>{busy ? "Claiming..." : "Claim"}</Button>}
+                : <>
+                    <Button onClick={claim} disabled={busy}>{busy ? "Signing and claiming..." : "Sign with wallet and claim"}</Button>
+                    <p className="mt-2 text-xs text-muted-foreground">Phantom will ask you to sign a short message proving you own the claiming wallet.</p>
+                  </>}
             </CardContent>
           </Card>
         )}

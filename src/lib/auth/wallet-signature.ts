@@ -26,3 +26,9 @@ export function verifyWalletSignature(params: {
 export function buildSubmissionMessage(taskId: string, payloadHash: string): string {
   return `agent-marketplace.submission\ntask:${taskId}\npayload:${payloadHash}`;
 }
+
+/** Canonical message Phantom signs to claim a task. Prevents claiming under
+ *  someone else's wallet address. */
+export function buildClaimMessage(taskId: string, walletAddress: string): string {
+  return `agent-marketplace.claim\ntask:${taskId}\nwallet:${walletAddress}`;
+}
