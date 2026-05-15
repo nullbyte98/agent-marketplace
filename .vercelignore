@@ -1,0 +1,7 @@
+anchor/
+scripts/.keys/
+prisma/dev.db
+prisma/dev.db-journal
+*.log
+.env
+.env.local

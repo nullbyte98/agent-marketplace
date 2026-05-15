@@ -59,7 +59,7 @@ export default function TaskDetailPage() {
 
     // SHA-256 in the browser via Web Crypto.
     const enc = new TextEncoder();
-    const hashBuf = await crypto.subtle.digest("SHA-256", enc.encode(dataString));
+    const hashBuf = await crypto.subtle.digest("SHA-256", enc.encode(dataString).buffer as ArrayBuffer);
     const payloadHash = Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
     const message = `agent-marketplace.submission\ntask:${task.id}\npayload:${payloadHash}`;
     const sigBytes = await signMessage(enc.encode(message));

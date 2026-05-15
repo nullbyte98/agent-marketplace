@@ -6,6 +6,8 @@ import { createEscrow, newTaskNonce, taskNonceToHex } from "@/lib/solana/escrow-
 import { loadKeypairFromBase58 } from "@/lib/solana/connection";
 import { VERIFICATION_METHODS } from "@/lib/constants";
 
+export const dynamic = "force-dynamic";
+
 const CreateBody = z.object({
   title: z.string().min(3).max(140),
   description: z.string().min(10).max(4000),
