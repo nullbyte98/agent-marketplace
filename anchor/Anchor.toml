@@ -1,0 +1,25 @@
+[toolchain]
+anchor_version = "0.32.1"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+marketplace_escrow = "CZD9e8HA3nuirtb1AgQ7wv4nFYgELjnhAS7PXwDzmZCC"
+
+[programs.devnet]
+marketplace_escrow = "CZD9e8HA3nuirtb1AgQ7wv4nFYgELjnhAS7PXwDzmZCC"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "npm test"
+
+[workspace]
+members = ["programs/marketplace_escrow"]

@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "Agent Marketplace - Agent API",
+    "description": "Programmatic interface for AI agents. Set baseUrl and apiKey in the collection variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "apiKey", "value": "PASTE_YOUR_API_KEY_HERE" },
+    { "key": "taskId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Post a task",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/api/tasks",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Find one verifiable fact\",\n  \"description\": \"Return one verifiable fact about the Solana validator client landscape.\",\n  \"acceptance_criteria\": { \"must_be\": \"verifiable\", \"sentences\": 1 },\n  \"bounty_amount_usdc\": 1.0,\n  \"deadline_hours\": 24,\n  \"verification_method\": \"text_response\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get task status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}"
+      }
+    },
+    {
+      "name": "List open tasks",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tasks?status=open"
+      }
+    },
+    {
+      "name": "Approve a submission",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/review",
+        "body": { "mode": "raw", "raw": "{\n  \"decision\": \"approve\"\n}" }
+      }
+    },
+    {
+      "name": "Reject submission (open dispute)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/review",
+        "body": { "mode": "raw", "raw": "{\n  \"decision\": \"reject\",\n  \"reason\": \"Submission did not meet the acceptance criteria.\"\n}" }
+      }
+    },
+    {
+      "name": "Run LLM judge (llm_judged tasks)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/api/tasks/{{taskId}}/judge"
+      }
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+// Prisma schema for the agent-native freelancer marketplace.
+// SQLite locally. For Vercel, swap the provider to "postgresql" or wire libSQL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite locally, Postgres on Vercel. Schema is compatible with both because
+  // we never use Postgres-specific column types. Set DATABASE_URL accordingly.
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id               String   @id @default(cuid())
+  label            String
+  apiKeyHash       String   @unique
+  walletAddress    String   // For refunds
+  walletSecret     String   // Base58 secret. v1 custodial. Documented limitation.
+  postedCount      Int      @default(0)
+  totalSpentUsdc   Float    @default(0)
+  createdAt        DateTime @default(now())
+  tasks            Task[]
+}
+
+model Worker {
+  walletAddress     String   @id
+  displayName       String?
+  completedCount    Int      @default(0)
+  disputesLost      Int      @default(0)
+  totalEarnedUsdc   Float    @default(0)
+  createdAt         DateTime @default(now())
+  claimedTasks      Task[]   @relation("ClaimedBy")
+  submissions       Submission[]
+}
+
+model Task {
+  id                    String   @id @default(cuid())
+  agentId               String
+  agent                 Agent    @relation(fields: [agentId], references: [id])
+  title                 String
+  description           String
+  acceptanceCriteriaJson String  // JSON-encoded structured criteria
+  bountyUsdc            Float
+  verificationMethod    String   // one of VerificationMethod
+  deadlineAt            DateTime
+  status                String   @default("open") // one of TaskStatus
+  claimedByWallet       String?
+  claimedBy             Worker?  @relation("ClaimedBy", fields: [claimedByWallet], references: [walletAddress])
+  claimedAt             DateTime?
+  submittedAt           DateTime?
+  submissionDataJson    String?  // JSON-encoded payload
+  escrowPda             String   // Base58 PDA pubkey
+  escrowFundedTxSig     String?
+  payoutTxSig           String?
+  refundTxSig           String?
+  llmJudgeResultJson    String?
+  taskNonce             String   @unique // 32-byte hex, used to derive the PDA
+  createdAt             DateTime @default(now())
+
+  submissions           Submission[]
+  disputes              Dispute[]
+
+  @@index([status])
+  @@index([verificationMethod])
+}
+
+model Submission {
+  id              String   @id @default(cuid())
+  taskId          String
+  task            Task     @relation(fields: [taskId], references: [id])
+  workerWallet    String
+  worker          Worker   @relation(fields: [workerWallet], references: [walletAddress])
+  submissionData  String   // JSON
+  signature       String?  // base58 signed message proving the worker authored this
+  llmJudgeResultJson String?
+  submittedAt     DateTime @default(now())
+}
+
+model Dispute {
+  id          String   @id @default(cuid())
+  taskId      String
+  task        Task     @relation(fields: [taskId], references: [id])
+  raisedBy    String   // "agent" or wallet address
+  reason      String
+  resolution  String?  // "released" | "refunded" | "split" | null while open
+  resolvedAt  DateTime?
+  resolvedBy  String?  // admin wallet that resolved
+  createdAt   DateTime @default(now())
+}

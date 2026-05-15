@@ -1,0 +1,346 @@
+{
+  "address": "CZD9e8HA3nuirtb1AgQ7wv4nFYgELjnhAS7PXwDzmZCC",
+  "metadata": {
+    "name": "marketplace_escrow",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Per-task USDC escrow for the agent-native freelancer marketplace"
+  },
+  "instructions": [
+    {
+      "name": "create_escrow",
+      "discriminator": [
+        253,
+        215,
+        165,
+        116,
+        36,
+        108,
+        68,
+        80
+      ],
+      "accounts": [
+        {
+          "name": "agent",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "The off-chain authority allowed to release or refund. In v1, the",
+            "backend platform keypair. Captured into escrow state on init."
+          ]
+        },
+        {
+          "name": "escrow_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "task_nonce"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "task_nonce"
+              }
+            ]
+          }
+        },
+        {
+          "name": "agent_token_account",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "task_nonce",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "bounty",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "refund_to_agent",
+      "discriminator": [
+        230,
+        165,
+        231,
+        32,
+        20,
+        197,
+        216,
+        250
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "escrow_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow_state.task_nonce",
+                "account": "EscrowState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow_state.task_nonce",
+                "account": "EscrowState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "agent_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "release_to_worker",
+      "discriminator": [
+        54,
+        127,
+        2,
+        20,
+        203,
+        213,
+        225,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "signer": true
+        },
+        {
+          "name": "escrow_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow_state.task_nonce",
+                "account": "EscrowState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow_state.task_nonce",
+                "account": "EscrowState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "worker_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "EscrowState",
+      "discriminator": [
+        19,
+        90,
+        148,
+        111,
+        55,
+        130,
+        229,
+        108
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "ZeroBounty",
+      "msg": "Bounty must be greater than zero."
+    },
+    {
+      "code": 6001,
+      "name": "WrongStatus",
+      "msg": "Escrow is not in the required status for this action."
+    },
+    {
+      "code": 6002,
+      "name": "Unauthorized",
+      "msg": "Caller is not the authority for this escrow."
+    }
+  ],
+  "types": [
+    {
+      "name": "EscrowState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "bounty",
+            "type": "u64"
+          },
+          {
+            "name": "task_nonce",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
