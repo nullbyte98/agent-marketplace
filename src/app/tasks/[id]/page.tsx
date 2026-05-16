@@ -107,12 +107,22 @@ export default function TaskDetailPage() {
               <p className="mb-1 font-medium">Acceptance criteria</p>
               <pre className="overflow-x-auto rounded bg-muted p-3 text-xs">{JSON.stringify(task.acceptance_criteria, null, 2)}</pre>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-              <div>Deadline: {new Date(task.deadline_at).toLocaleString("en-GB")}</div>
-              <div>Escrow PDA: <a target="_blank" rel="noreferrer" className="underline" href={`https://explorer.solana.com/address/${task.escrow_pda}?cluster=devnet`}>{task.escrow_pda.slice(0,8)}...</a></div>
-              {task.escrow_funded_tx_sig && <div className="col-span-2">Funding tx: <a target="_blank" rel="noreferrer" className="underline" href={`https://explorer.solana.com/tx/${task.escrow_funded_tx_sig}?cluster=devnet`}>{task.escrow_funded_tx_sig.slice(0,12)}...</a></div>}
-              {task.payout_tx_sig && <div className="col-span-2">Payout tx: <a target="_blank" rel="noreferrer" className="underline" href={`https://explorer.solana.com/tx/${task.payout_tx_sig}?cluster=devnet`}>{task.payout_tx_sig.slice(0,12)}...</a></div>}
+            <p className="text-xs text-muted-foreground">Deadline: {new Date(task.deadline_at).toLocaleString("en-GB")}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="mb-6 border-green-500/30 bg-green-500/5">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+              <CardTitle className="text-base">Verified on Solana devnet</CardTitle>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <OnChainRow label="Escrow PDA (vault)" value={task.escrow_pda} href={`https://explorer.solana.com/address/${task.escrow_pda}?cluster=devnet`} />
+            {task.escrow_funded_tx_sig && <OnChainRow label="Funding transaction" value={task.escrow_funded_tx_sig} href={`https://explorer.solana.com/tx/${task.escrow_funded_tx_sig}?cluster=devnet`} />}
+            {task.payout_tx_sig && <OnChainRow label="Payout transaction" value={task.payout_tx_sig} href={`https://explorer.solana.com/tx/${task.payout_tx_sig}?cluster=devnet`} />}
+            {task.refund_tx_sig && <OnChainRow label="Refund transaction" value={task.refund_tx_sig} href={`https://explorer.solana.com/tx/${task.refund_tx_sig}?cluster=devnet`} />}
           </CardContent>
         </Card>
 
@@ -174,5 +184,16 @@ export default function TaskDetailPage() {
         )}
       </div>
     </main>
+  );
+}
+
+function OnChainRow({ label, value, href }: { label: string; value: string; href: string }) {
+  return (
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+      <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
+      <a target="_blank" rel="noreferrer" href={href} className="break-all font-mono text-xs text-primary underline-offset-4 hover:underline sm:text-right">
+        {value.slice(0, 12)}...{value.slice(-8)} ↗
+      </a>
+    </div>
   );
 }
